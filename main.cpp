@@ -4,8 +4,6 @@
 #include <typeinfo>
 
 using namespace std;
-
-
 int main(int argc, char** argv){
 	int max = 10000;
 	int iterations = 10;
