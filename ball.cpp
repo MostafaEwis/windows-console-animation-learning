@@ -16,14 +16,13 @@
 #define FS 12
 //line height
 #define LH 1.2
-//since I'm using a 125% scaling in my laptop a pixel is not a pixel, it's 1.25 pixels making PTP less by a factor of 1.25
+//since I'm using a 125% scaling in my laptop a pixel is not a pixel, it's 1.25 pixels making PPI less by a factor of 1.25
 #define SCALE 1.25
 
 
 using namespace std;
 
 void drawCircle(SHORT x,SHORT y, int radius, int maxX, int maxY){
-	short int cy = 0;
 	HANDLE circleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	system("cls");
 	for(int d = radius; d >= -radius ; d--){
@@ -31,6 +30,9 @@ void drawCircle(SHORT x,SHORT y, int radius, int maxX, int maxY){
 		//the circle height looks taller than width and that's is due to the asymtery in the pixels of the terminal, I can compensate by making lengthing the width
 		//the line height in my terminal is 1.2 that's why I'm using it instead of 1
 		halfChordLen *= LH / GR;
+		if( y + d < 0 || y + d > maxY){
+			continue;
+		}
 		for(SHORT i = x - halfChordLen; i < x + halfChordLen; i++){
 			if(i < 0 || i > maxX){
 				continue;
@@ -106,16 +108,17 @@ void magicBall(int x, int y, int radius, bool opt = true){
 		GetWindowRect(hwnd, &wr);
 		currLeft = wr.left;
 		currTop = wr.top;
-		maxX = round(abs(wr.left - wr.right) / boundX);
-		maxY = abs(wr.top - wr.bottom) / boundY / LH;
+		//this is hard coded, I sitll don't know what I got wrong with this 
+		maxX = abs(wr.left - wr.right) / (boundX * 1.06);
+		maxY = abs(wr.top - wr.bottom) / boundY / (LH + 0.25);
 		dx += currLeft - prevLeft;
 		dy += currTop - prevTop;
 		//diagnositc
-		//SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
-		//cout << dx << ", " << dy << endl;
-		//cout << x << ", " << y << endl;
-		//cout << wr.left << ", " << wr.top << endl;
-		//cout << dx / boundX << ", " << dy / boundY << endl;
+		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
+		cout << dx << ", " << dy << endl;
+		cout << maxX << ", " << y << endl;
+		cout << wr.left << ", " << wr.top << endl;
+		cout << dx / boundX << ", " << dy / boundY << endl;
 
 		//update the x, y of the circle only of the changes accounts for one or more pixels of the terminal
 		if(abs(dx) > boundX){
