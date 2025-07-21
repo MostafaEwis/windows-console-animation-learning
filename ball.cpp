@@ -6,51 +6,41 @@
 #include <typeinfo>
 #include <cmath>
 
-#define G_R 0.6180339887f
+//the ratio between the width and height of the character is the golden ratio
+#define GR 0.6180339887f
+//the ratio between pixel density and point density
 #define PTP 141.2119980822f / 72.f
-#define CODE '.'
+//the character to draw
+#define CODE '.' 
+//the font size of the character, this is how many pixels the character height is
 #define FS 12
+//line height
+#define LH 1.2
+//since I'm using a 125% scaling in my laptop a pixel is not a pixel, it's 1.25 pixels making PTP less by a factor of 1.25
+#define SCALE 1.25
+
 
 using namespace std;
 
-void drawCircle(SHORT x,SHORT y, int radius){
-	short int cx, cy = 0;
+void drawCircle(SHORT x,SHORT y, int radius, int maxX, int maxY){
+	short int cy = 0;
 	HANDLE circleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	system("cls");
-	for(int d = radius; d > 0; d--){
+	for(int d = radius; d >= -radius ; d--){
 		float halfChordLen = sqrt(pow(radius, 2) - pow(d, 2));
-		//the line height in my terminal is 1.3 that's why I'm using it instead of 1
-		halfChordLen *= 1.2 / G_R;
-		cy = d + y;
-		cx = x - halfChordLen;
-		SetConsoleCursorPosition(circleHandle, {cx, cy});
-		for(int i = 0; i < halfChordLen; i++){
-			cout << CODE;
-		}
-
-		cx = x;
-		SetConsoleCursorPosition(circleHandle, {cx, cy});
-		for(int i = 0; i < halfChordLen; i++){
-			cout << CODE;
-		}
-	}
-	for(int d = -radius; d <= 0; d++){
-		float halfChordLen = sqrt(pow(radius, 2) - pow(d, 2));
-		halfChordLen *= 1.2 / G_R;
-		cy = d + y;
-		cx = x - halfChordLen;
-		SetConsoleCursorPosition(circleHandle, {cx, cy});
-		for(int i = 0; i < halfChordLen; i++){
-			cout << CODE;
-		}
-
-		cx = x;
-		SetConsoleCursorPosition(circleHandle, {cx, cy});
-		for(int i = 0; i < halfChordLen; i++){
+		//the circle height looks taller than width and that's is due to the asymtery in the pixels of the terminal, I can compensate by making lengthing the width
+		//the line height in my terminal is 1.2 that's why I'm using it instead of 1
+		halfChordLen *= LH / GR;
+		for(SHORT i = x - halfChordLen; i < x + halfChordLen; i++){
+			if(i < 0 || i > maxX){
+				continue;
+			}
+			SetConsoleCursorPosition(circleHandle, {i, (SHORT)(y + d)});
 			cout << CODE;
 		}
 	}
 }
+//this function is from Microsoft docs, I have not written it 
 HWND GetConsoleHwnd(){
        #define MY_BUFSIZE 1024 // Buffer size for console window titles.
        HWND hwndFound;         // This is what is returned to the caller.
@@ -87,49 +77,86 @@ HWND GetConsoleHwnd(){
 
        return(hwndFound);
    }
-void magicBall(float x, float y, int radius, bool opt = true){
+void magicBall(int x, int y, int radius, bool opt = true){
 	RECT wr;
 	HWND hwnd = GetConsoleHwnd();
 	GetWindowRect(hwnd, &wr);
-	float dx = 0;
-	float dy = 0;
-	drawCircle(x, y, radius);
-	bool exit = false;
-	char exitChar = ' ';
-	LONG currRight = wr.right;
-	LONG prevRight = wr.right;
+	LONG currLeft = wr.left;
+	LONG prevLeft = wr.left;
 	LONG currTop = wr.top;
 	LONG prevTop = wr.top;
-	float oldX = x;
-	float oldY = y;
+	float dx = 0;
+	float dy = 0;
+
+	float errorX = 0;
+	float errorY = 0;
+
+	float boundX = PTP * FS * GR / SCALE / SCALE;
+	float boundY = PTP * FS / SCALE / SCALE;
+	
+	//intialize the circle in the middle
+	int maxX = abs(wr.left - wr.right) / boundX;
+	int maxY = abs(wr.top - wr.bottom) / boundY / LH;
+	x = maxX / 2;
+	y = maxY / 2;
+	drawCircle(x, y, radius, 2 * x, 2 * y);
 	bool redraw = false;
+	//I wanted to use getch() and exit on getting c, but I need a live loop and don't know how to use the input buffer without waiting and inturpteing the program.
 	while(true){
 		GetWindowRect(hwnd, &wr);
-		currRight = wr.right;
+		currLeft = wr.left;
 		currTop = wr.top;
-		dx += currRight - prevRight;
+		maxX = round(abs(wr.left - wr.right) / boundX);
+		maxY = abs(wr.top - wr.bottom) / boundY / LH;
+		dx += currLeft - prevLeft;
 		dy += currTop - prevTop;
-		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
-		cout << dx << ", " << dy << endl;
-		cout << x << ", " << y << endl;
-		cout << wr.right << ", " << wr.top << endl;
-		cout << (float)dy / (PTP * FS) << ", " << (float)dx / (PTP * FS * G_R) << endl;
-		if(abs(dx) > (PTP * FS * G_R)){
-			x -= dx / (PTP * FS * G_R);
+		//diagnositc
+		//SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
+		//cout << dx << ", " << dy << endl;
+		//cout << x << ", " << y << endl;
+		//cout << wr.left << ", " << wr.top << endl;
+		//cout << dx / boundX << ", " << dy / boundY << endl;
+
+		//update the x, y of the circle only of the changes accounts for one or more pixels of the terminal
+		if(abs(dx) > boundX){
+			float intPart = 0;
+			errorX += modff(dx / boundX, &intPart);
+			x -= intPart;
 			dx = 0;
 			redraw = true;
 		}
-		if(abs(dy) > (PTP * FS)){
-			y -= dy / (PTP * FS);
+		if(abs(dy) > boundY){
+			float intPart = 0;
+			errorY += modff(dy / boundY, &intPart);
+			y -= intPart;
 			dy = 0;
 			redraw = true;
 		}
+		if(errorX >= 1){
+			errorX--;
+			x--;
+			redraw = true;
+		}else if(errorX <= -1){
+			errorX++;
+			x++;
+			redraw = true;
+		}
+		//cooler but bad is to use the bool value of abs(errorY) >= 1 and subtract it from errorY and y
+		if(errorY >= 1){
+			errorY--;
+			y--;
+			redraw = true;
+		}else if(errorY <= -1){
+			errorY++;
+			y++;
+			redraw = true;
+		}
 		if(redraw || !opt){
-			drawCircle(x, y, radius);
+			drawCircle(x, y, radius, maxX, maxY);
 			redraw = false;
 		}
 
-		prevRight = currRight;
+		prevLeft = currLeft;
 		prevTop = currTop;
 	}
 }
@@ -137,6 +164,6 @@ void magicBall(float x, float y, int radius, bool opt = true){
 int main(int argc, char** argv){
 	//to hide the cursor
 	cout << "\e[?25l";
-	magicBall(40, 20, 5);
+	magicBall(60, 20, 5);
 	return 0;
 }
