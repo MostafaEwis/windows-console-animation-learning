@@ -8,17 +8,8 @@
 
 //the ratio between the width and height of the character is the golden ratio
 #define GR 0.6180339887f
-//the ratio between pixel density and point density
-#define PTP 141.2119980822f / 72.f
-//the character to draw
 #define CODE '.' 
-//the font size of the character, this is how many pixels the character height is
-#define FS 12
-//line height
 #define LH 1.2
-//since I'm using a 125% scaling in my laptop a pixel is not a pixel, it's 1.25 pixels making PPI less by a factor of 1.25
-#define SCALE 1.25
-
 
 using namespace std;
 
@@ -96,15 +87,16 @@ void magicBall(int x, int y, int radius, bool opt = true){
 	float errorX = 0;
 	float errorY = 0;
 
-	float boundX = PTP * FS * GR / SCALE / SCALE;
-	float boundY = PTP * FS / SCALE / SCALE;
 	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &consoleInfo);
 	//intialize the circle in the middle
-	int maxX = consoleInfo.dwSize.X;
-	int maxY = consoleInfo.dwSize.Y;
+	float maxX = consoleInfo.dwSize.X;
+	float maxY = consoleInfo.dwSize.Y;
 	x = maxX / 2;
 	y = maxY / 2;
-	drawCircle(x, y, radius, 2 * x, 2 * y);
+	float boundX = abs(wr.left - wr.right) / maxX;
+	//the boundY is calculated using boundX because the top - bottom accounts for the title bar which is not a part of the console
+	float boundY = boundX * (1.f / GR);
+	drawCircle(x, y, radius, maxX, maxY);
 	bool redraw = false;
 	//I wanted to use getch() and exit on getting c, but I need a live loop and don't know how to use the input buffer without waiting and inturpteing the program.
 	while(true){
@@ -112,19 +104,27 @@ void magicBall(int x, int y, int radius, bool opt = true){
 		currLeft = wr.left;
 		currTop = wr.top;
 		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &consoleInfo);
-		maxX = consoleInfo.dwSize.X;
-		maxY = consoleInfo.dwSize.Y;
 		dx += currLeft - prevLeft;
 		dy += currTop - prevTop;
+		//update of the window info
+		maxX = consoleInfo.dwSize.X;
+		maxY = consoleInfo.dwSize.Y;
+		//diagnositc
+		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
+		cout << dx << ", " << dy << endl;
+		cout << maxX << ", " << maxY << endl;
+		cout << abs(wr.left - wr.right) << ", " << wr.top << endl;
+		cout << boundX << ", " << boundY << endl;
+
 		//update the x, y of the circle only of the changes accounts for one or more pixels of the terminal
-		if(abs(dx) > boundX){
+		if(abs(dx) >= boundX){
 			float intPart = 0;
 			errorX += modff(dx / boundX, &intPart);
 			x -= intPart;
 			dx = 0;
 			redraw = true;
 		}
-		if(abs(dy) > boundY){
+		if(abs(dy) >= boundY){
 			float intPart = 0;
 			errorY += modff(dy / boundY, &intPart);
 			y -= intPart;
