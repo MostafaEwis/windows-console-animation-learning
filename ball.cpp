@@ -22,7 +22,7 @@
 
 using namespace std;
 
-void drawCircle(SHORT x,SHORT y, int radius, int maxX, int maxY){
+void drawCircle(const SHORT &x,const SHORT &y, int radius, const int &maxX,const  int &maxY){
 	HANDLE circleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 	system("cls");
 	for(int d = radius; d >= -radius ; d--){
@@ -30,11 +30,11 @@ void drawCircle(SHORT x,SHORT y, int radius, int maxX, int maxY){
 		//the circle height looks taller than width and that's is due to the asymtery in the pixels of the terminal, I can compensate by making lengthing the width
 		//the line height in my terminal is 1.2 that's why I'm using it instead of 1
 		halfChordLen *= LH / GR;
-		if( y + d < 0 || y + d > maxY){
+		if( y + d < 0 || y + d >= maxY){
 			continue;
 		}
 		for(SHORT i = x - halfChordLen; i < x + halfChordLen; i++){
-			if(i < 0 || i > maxX){
+			if(i < 0 || i >= maxX){
 				continue;
 			}
 			SetConsoleCursorPosition(circleHandle, {i, (SHORT)(y + d)});
@@ -80,8 +80,11 @@ HWND GetConsoleHwnd(){
        return(hwndFound);
    }
 void magicBall(int x, int y, int radius, bool opt = true){
+	//to hide the cursor
+	cout << "\e[?25l";
 	RECT wr;
 	HWND hwnd = GetConsoleHwnd();
+	CONSOLE_SCREEN_BUFFER_INFO consoleInfo;
 	GetWindowRect(hwnd, &wr);
 	LONG currLeft = wr.left;
 	LONG prevLeft = wr.left;
@@ -95,10 +98,10 @@ void magicBall(int x, int y, int radius, bool opt = true){
 
 	float boundX = PTP * FS * GR / SCALE / SCALE;
 	float boundY = PTP * FS / SCALE / SCALE;
-	
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &consoleInfo);
 	//intialize the circle in the middle
-	int maxX = abs(wr.left - wr.right) / boundX;
-	int maxY = abs(wr.top - wr.bottom) / boundY / LH;
+	int maxX = consoleInfo.dwSize.X;
+	int maxY = consoleInfo.dwSize.Y;
 	x = maxX / 2;
 	y = maxY / 2;
 	drawCircle(x, y, radius, 2 * x, 2 * y);
@@ -108,18 +111,11 @@ void magicBall(int x, int y, int radius, bool opt = true){
 		GetWindowRect(hwnd, &wr);
 		currLeft = wr.left;
 		currTop = wr.top;
-		//this is hard coded, I sitll don't know what I got wrong with this 
-		maxX = abs(wr.left - wr.right) / (boundX * 1.06);
-		maxY = abs(wr.top - wr.bottom) / boundY / (LH + 0.25);
+		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &consoleInfo);
+		maxX = consoleInfo.dwSize.X;
+		maxY = consoleInfo.dwSize.Y;
 		dx += currLeft - prevLeft;
 		dy += currTop - prevTop;
-		//diagnositc
-		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
-		cout << dx << ", " << dy << endl;
-		cout << maxX << ", " << y << endl;
-		cout << wr.left << ", " << wr.top << endl;
-		cout << dx / boundX << ", " << dy / boundY << endl;
-
 		//update the x, y of the circle only of the changes accounts for one or more pixels of the terminal
 		if(abs(dx) > boundX){
 			float intPart = 0;
@@ -165,8 +161,6 @@ void magicBall(int x, int y, int radius, bool opt = true){
 }
 
 int main(int argc, char** argv){
-	//to hide the cursor
-	cout << "\e[?25l";
 	magicBall(60, 20, 5);
 	return 0;
 }
